@@ -13,6 +13,13 @@ export interface ETLJob {
   errorMessage?: string;
 }
 
+export interface ETLJobStatus {
+  jobId: string;
+  status: string;
+  progress?: number;
+  message?: string;
+}
+
 export class ETLService {
   private dbService: DatabaseService;
   private etlServiceUrl: string;
@@ -68,15 +75,26 @@ export class ETLService {
     return await this.dbService.getETLJob(jobId);
   }
 
-  // TODO: CANDIDATE TO IMPLEMENT
   // /**
   //  * Get ETL job status from ETL service
   //  */
-  // async getJobStatus(jobId: string): Promise<{ status: string; progress?: number; message?: string }> {
-  //   // Implementation needed:
-  //   // 1. Validate jobId exists in database
-  //   // 2. Call ETL service to get real-time status
-  //   // 3. Handle connection errors gracefully
-  //   // 4. Return formatted status response
-  // }
+  async getJobStatus(jobId: string): Promise<ETLJobStatus | null> {
+    // change of function signature: according to the spec in the README we want to include the job id in the data payload as well,
+    // implying that we really want the ETL job status as indicated in etl-service
+    
+    // 1. Validate jobId exists in database
+    // this part done at the controller level
+
+    // 2. Call ETL service to get real-time status
+    // 3. Handle connection errors gracefully
+    // 4. Return formatted status response
+    try {
+      const etlResponse = await axios.get(`${this.etlServiceUrl}/jobs/${jobId}/status`);
+      const jobStatus = etlResponse.data;
+      return jobStatus;
+    } catch (error) {
+      // status field in the job status interface indicates if the *job* failed, but we want to report that the *retrieval* failed
+      return null;
+    }
+  }
 }
