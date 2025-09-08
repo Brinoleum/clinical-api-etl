@@ -38,6 +38,11 @@ ENV/
 env.bak/
 venv.bak/
 
+# UV environment files
+.python-version
+pyproject.toml
+uv.lock
+
 # IDE and Editor files
 .vscode/
 .idea/
