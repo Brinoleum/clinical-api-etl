@@ -3,6 +3,8 @@ from pydantic import BaseModel
 from typing import Optional, Dict, Any
 import uvicorn
 import os
+from .data_processing import etl_pipeline
+import asyncio
 
 app = FastAPI(title="Clinical Data ETL Service", version="1.0.0")
 
@@ -36,6 +38,10 @@ async def submit_job(job_request: ETLJobRequest):
     Submit a new ETL job for processing
     """
     job_id = job_request.jobId
+
+    # if the job already exists then raise an exception since we don't want to overwrite the existing job
+    if job_id in jobs:
+        raise HTTPException(status_code=400, detail="Job ID already exists")
     
     # Store job in memory (simplified for demo)
     jobs[job_id] = {
@@ -47,13 +53,9 @@ async def submit_job(job_request: ETLJobRequest):
         "message": "Job started"
     }
     
-    # TODO: Implement actual ETL processing
-    # This is where the candidate would implement:
-    # 1. File extraction
-    # 2. Data transformation 
-    # 3. Quality validation
-    # 4. Database loading
-    
+    # run the ETL process asynchronously
+    asyncio.create_task(etl_pipeline(job_request.filename, jobs, job_id))
+
     return ETLJobResponse(
         jobId=job_id,
         status="running",
