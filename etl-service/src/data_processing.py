@@ -16,6 +16,7 @@ import pandas as pd
 import asyncio
 import psycopg2 as pg
 from typing import Dict, Any
+import os
 
 async def extract_data(filename: str) -> pd.DataFrame:
     """
@@ -118,9 +119,47 @@ async def validate_data(data: pd.DataFrame) -> bool:
 async def load_data(data: pd.DataFrame) -> None:
     """
     Database loading to insert the processed data into the Postgres database
+
+    Input: Dataframe with validated data
+
+    Output: None
     """
-    await asyncio.sleep(1)  # Simulate I/O delay
-    pass
+    await asyncio.sleep(1)  # Simulate I/O
+    username, pw, db = os.getenv("POSTGRES_USER") or "user", os.getenv("POSTGRES_PASSWORD") or "pass", os.getenv("POSTGRES_DB") or "clinical_data"
+    postgres_url = os.getenv("POSTGRES_URL") or "postgres"
+    connection = None
+    try:
+        connection = pg.connect(user=username,
+                                password=pw,
+                                host=postgres_url,
+                                port="5432",
+                                database=db)
+        cursor = connection.cursor()
+        for _, row in data.iterrows():
+            insert_query = """
+            INSERT INTO clinical_measurements (study_id, participant_id, measurement_type, value, unit, timestamp, site_id, quality_score)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            """
+            cursor.execute(insert_query, (
+                row['study_id'],
+                row['participant_id'],
+                row['measurement_type'],
+                row['value'],
+                row['unit'],
+                row['timestamp'],
+                row['site_id'],
+                row['quality_score']
+            ))
+        connection.commit()
+    except (Exception, pg.Error) as error:
+        print(error)
+        if connection:
+            connection.rollback()
+        raise Exception('Database insertion failed')
+    finally:
+        if (connection):
+            cursor.close()
+            connection.close()
 
 async def etl_pipeline(filename: str, jobs: Dict[str, Dict[str, Any]], job_id: str) -> None:
     """

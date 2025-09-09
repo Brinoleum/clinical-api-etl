@@ -12,6 +12,9 @@ app = FastAPI(title="Clinical Data ETL Service", version="1.0.0")
 # In production, this would use a proper database or job queue
 jobs: Dict[str, Dict[str, Any]] = {}
 
+# ensure asyncio tasks are tracked with strong references so they don't get garbage collected
+tasks = set()
+
 class ETLJobRequest(BaseModel):
     jobId: str
     filename: str
@@ -54,7 +57,9 @@ async def submit_job(job_request: ETLJobRequest):
     }
     
     # run the ETL process asynchronously
-    asyncio.create_task(etl_pipeline(job_request.filename, jobs, job_id))
+    task = asyncio.create_task(etl_pipeline(job_request.filename, jobs, job_id))
+    tasks.add(task)
+    task.add_done_callback(tasks.discard)
 
     return ETLJobResponse(
         jobId=job_id,
